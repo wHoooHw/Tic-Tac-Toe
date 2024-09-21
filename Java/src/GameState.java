@@ -61,7 +61,59 @@ public class GameState {
 	public void applyMove(final int move) {
 		board[move] = currentPlayer;
 		Utils.removeSwap(legalMoves, legalMoves.indexOf(Integer.valueOf(move)));
+		
+		// Check if the mover won
+		final int[][] linesToCheck = LINES_TO_CHECK[move];
+		for (final int[] line : linesToCheck) {
+			boolean win = true;
+			
+			for (final int cell : line) {
+				if (board[cell] != currentPlayer) {
+					win = false;
+					break;
+				}
+			}
+			
+			if (win) {
+				winner = currentPlayer;
+				break;
+			}
+		}
+		
+		// Swap players
 		currentPlayer *= -1;
+	}
+	
+	/**
+	 * Reverts game state back to the one we were in before given move was played.
+	 * 
+	 * WARNING: for the sake of efficiency, does not implement any checks to avoid
+	 * weird stuff happening if this is called on the initial game state.
+	 * 
+	 * It also does not check whether the given move was actually played last.
+	 * 
+	 * @param move
+	 */
+	public void undoMove(final int move) {
+		board[move] = 0;
+		legalMoves.add(Integer.valueOf(move));
+		winner = 0;
+		currentPlayer *= -1;
+	}
+	
+	/**
+	 * @return Did the game end?
+	 */
+	public boolean isGameOver() {
+		return winner != 0 || legalMoves.isEmpty();
+	}
+	
+	/**
+	 * @return Which player won? Returns 0 if the game is not yet over,
+	 *  but also if it ended in a draw.
+	 */
+	public int getWinner() {
+		return winner;
 	}
 	
 	/**
@@ -99,6 +151,8 @@ public class GameState {
 				++numLinesToCheck;		// a row-2 corner
 			else if (row == 1 && col == 1)
 				numLinesToCheck += 2;	// the centre
+			
+			LINES_TO_CHECK[i] = new int[numLinesToCheck][2];
 
 			// A horizontal line
 			int nextIdx = 0;
@@ -122,7 +176,39 @@ public class GameState {
 			if (row != 2)
 				LINES_TO_CHECK[i][1][nextIdx++] = rowColToIndex(new int[] {2, col});
 			
-			// TODO diagonal lines
+			// See if any diagonal lines are necessary
+			if (col != 1) {
+				if (row == 0) {
+					// Need 1 diagonal
+					if (col == 0) {
+						LINES_TO_CHECK[i][2][0] = rowColToIndex(new int[] {1, 1});
+						LINES_TO_CHECK[i][2][1] = rowColToIndex(new int[] {2, 2});
+					}
+					else if (col == 2) {
+						LINES_TO_CHECK[i][2][0] = rowColToIndex(new int[] {1, 1});
+						LINES_TO_CHECK[i][2][1] = rowColToIndex(new int[] {2, 0});
+					}
+				}
+				else if (row == 2) {
+					// Need 1 diagonal
+					if (col == 0) {
+						LINES_TO_CHECK[i][2][0] = rowColToIndex(new int[] {1, 1});
+						LINES_TO_CHECK[i][2][1] = rowColToIndex(new int[] {0, 2});
+					}
+					else if (col == 2) {
+						LINES_TO_CHECK[i][2][0] = rowColToIndex(new int[] {0, 0});
+						LINES_TO_CHECK[i][2][1] = rowColToIndex(new int[] {1, 1});
+					}
+				}
+			}
+			else if (row == 1) {
+				// Centre, so need to do both diagonals
+				LINES_TO_CHECK[i][2][0] = rowColToIndex(new int[] {0, 0});
+				LINES_TO_CHECK[i][2][1] = rowColToIndex(new int[] {2, 2});
+				
+				LINES_TO_CHECK[i][3][0] = rowColToIndex(new int[] {0, 2});
+				LINES_TO_CHECK[i][3][1] = rowColToIndex(new int[] {2, 0});
+			}
 		}
 	}
 
