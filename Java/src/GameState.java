@@ -92,7 +92,7 @@ public class GameState {
 	 * 
 	 * It also does not check whether the given move was actually played last.
 	 * 
-	 * @param move
+	 * @param move The move to be undone.
 	 */
 	public void undoMove(final int move) {
 		board[move] = 0;
