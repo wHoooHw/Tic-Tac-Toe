@@ -1,0 +1,1 @@
+print("should've started that shit early, oh wait what a new isnight, fat fuck")
