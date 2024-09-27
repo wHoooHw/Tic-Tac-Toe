@@ -68,7 +68,7 @@ public class Main {
                 return;
         }
 
-        // AMRK: Prints results
+        // MARK: Prints results
         System.out.println("Game ended after " + numMoves + " moves.");
         if (gameState.getWinner() == GameState.PLAYER_1)
             System.out.println("The winner was: MR_Negamax_AI.");

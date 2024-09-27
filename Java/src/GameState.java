@@ -48,15 +48,26 @@ public class GameState {
 		return Collections.unmodifiableList(legalMoves);
 	}
 
+
+
+	/**
+	 * @return The game board.
+	 */
 	public int[] getBoard(){
 		return board; 
 	}
 
+
+	/**
+	 * @return The current Player.
+	 */
 	public int getCurrentPlayer(){
 		return currentPlayer;						
 	}
 
-
+	/**
+	 * @return A copy of the current gameState 
+	 */
 	public GameState clone() {
         GameState clonedState = new GameState();
         System.arraycopy(this.board, 0, clonedState.board, 0, this.board.length);
