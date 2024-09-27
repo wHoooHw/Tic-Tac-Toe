@@ -47,6 +47,25 @@ public class GameState {
 	public List<Integer> getLegalMoves() {
 		return Collections.unmodifiableList(legalMoves);
 	}
+
+	public int[] getBoard(){
+		return board; 
+	}
+
+	public int getCurrentPlayer(){
+		return currentPlayer;						
+	}
+
+
+	public GameState clone() {
+        GameState clonedState = new GameState();
+        System.arraycopy(this.board, 0, clonedState.board, 0, this.board.length);
+        clonedState.legalMoves.clear();
+        clonedState.legalMoves.addAll(this.legalMoves);
+        clonedState.currentPlayer = this.currentPlayer;
+        clonedState.winner = this.winner;
+        return clonedState;
+    }
 	
 	/**
 	 * Modifies the game state by applying the given move.
