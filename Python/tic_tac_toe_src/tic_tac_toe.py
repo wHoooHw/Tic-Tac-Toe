@@ -1,168 +1,117 @@
-"""
-Implementation of Tic-Tac-Toe.
-"""
-
 import numpy as np
-from typing import Tuple
+from numba import njit, prange
 
-PLAYER_1 = 1
-PLAYER_2 = -1
+@njit
+def initialize_board():
+    return np.zeros(9, dtype=np.int8)
 
-_NUM_ROWS = 3
-_NUM_COLS = 3
+@njit
+def make_move(board, square, player):
+    board[square] = player
 
-def index_to_row_col(index: int) -> Tuple[int, int]:
-	"""
-	:param index: A 0-based index.
-	:return: (row, column) corresponding to the given index.
-	"""
-	return index // _NUM_COLS, index % _NUM_COLS
+@njit
+def get_empty_squares(board):
+    return np.where(board == 0)[0]
 
+@njit
+def check_winner(board, player):
+    win_positions = np.array([
+        [0, 1, 2],  # Rows
+        [3, 4, 5],
+        [6, 7, 8],
+        [0, 3, 6],  # Columns
+        [1, 4, 7],
+        [2, 5, 8],
+        [0, 4, 8],  # Diagonals
+        [2, 4, 6]
+    ], dtype=np.int8)
+    
+    for i in range(8):
+        pos0 = win_positions[i, 0]
+        pos1 = win_positions[i, 1]
+        pos2 = win_positions[i, 2]
+        if board[pos0] == player and board[pos1] == player and board[pos2] == player:
+            return True
+    return False
 
-def row_col_to_index(row_col: Tuple[int, int]) -> int:
-	"""
-	:param row_col: (row, column)
-	:return: A 0-based index corresponding to the given row and column.
-	"""
-	return (row_col[0] * _NUM_COLS) + row_col[1]
+@njit
+def negamax(board, player, alpha, beta):
+    if check_winner(board, -player):
+        return -1  # Opponent has won
 
-def _compute_lines_to_check():
-	"""
-	Pre-compute the lines we have to search along for potential wins for any move
+    empty = get_empty_squares(board)
+    if len(empty) == 0:
+        return 0  # Tie
 
-	:return: Data structure of lines to check for wins.
-	"""
-	lines_to_check = list()
+    max_score = -np.inf
 
-	for i in range(_NUM_COLS * _NUM_ROWS):
-		# // Pre-computing data for case where `i` is the move that was just played
-		row, col = index_to_row_col(i)
+    for idx in empty:
+        board[idx] = player
+        score = -negamax(board, -player, -beta, -alpha)
+        board[idx] = 0
 
-		# Always need to check at least 2 lines (horizontal and vertical)
-		num_lines_to_check = 2
+        if score > max_score:
+            max_score = score
 
-		if row == 0 and col != 1:
-			num_lines_to_check += 1  # a row-0 corner
-		elif row == 2 and col != 1:
-			num_lines_to_check += 1  # a row-2 corner
-		elif row == 1 and col == 1:
-			num_lines_to_check += 2  # the centre
+        if max_score > alpha:
+            alpha = max_score
 
-		lines_to_check.append([list() for _ in range(num_lines_to_check)])
+        if alpha >= beta:
+            break  # Alpha-beta pruning
 
-		# A horizontal line
-		if col != 0:
-			lines_to_check[i][0].append(row_col_to_index((row, 0)))
+    return max_score
 
-		if col != 1:
-			lines_to_check[i][0].append(row_col_to_index((row, 1)))
+@njit
+def ai_player_move(board, player):
+    best_score = -np.inf
+    best_move = -1
+    empty = get_empty_squares(board)
 
-		if col != 2:
-			lines_to_check[i][0].append(row_col_to_index((row, 2)))
+    for idx in empty:
+        board[idx] = player
+        score = -negamax(board, -player, -np.inf, np.inf)
+        board[idx] = 0
 
-		# A vertical line
-		if row != 0:
-			lines_to_check[i][1].append(row_col_to_index((0, col)))
+        if score > best_score:
+            best_score = score
+            best_move = idx
 
-		if row != 1:
-			lines_to_check[i][1].append(row_col_to_index((1, col)))
+    return best_move
 
-		if row != 2:
-			lines_to_check[i][1].append(row_col_to_index((2, col)))
+@njit
+def random_player_move(board):
+    empty = get_empty_squares(board)
+    idx = np.random.randint(0, len(empty))
+    return empty[idx]
 
-		# See if any diagonal lines are necessary
-		if col != 1:
-			if row == 0:
-				# Need 1 diagonal
-				if col == 0:
-					lines_to_check[i][2].append(row_col_to_index((1, 1)))
-					lines_to_check[i][2].append(row_col_to_index((2, 2)))
-				elif col == 2:
-					lines_to_check[i][2].append(row_col_to_index((1, 1)))
-					lines_to_check[i][2].append(row_col_to_index((2, 0)))
-			elif row == 2:
-				# Need 1 diagonal
-				if col == 0:
-					lines_to_check[i][2].append(row_col_to_index((1, 1)))
-					lines_to_check[i][2].append(row_col_to_index((0, 2)))
-				elif col == 2:
-					lines_to_check[i][2].append(row_col_to_index((0, 0)))
-					lines_to_check[i][2].append(row_col_to_index((1, 1)))
-		elif row == 1:
-			# Centre, so need to do both diagonals
-			lines_to_check[i][2].append(row_col_to_index((0, 0)))
-			lines_to_check[i][2].append(row_col_to_index((2, 2)))
+@njit
+def play_single_game(player1_type, player2_type):
+    board = initialize_board()
+    current_player = 1  # 'X' starts
+    while True:
+        if current_player == 1:
+            if player1_type == 1:
+                move = ai_player_move(board, current_player)
+            else:
+                move = random_player_move(board)
+        else:
+            if player2_type == 1:
+                move = ai_player_move(board, current_player)
+            else:
+                move = random_player_move(board)
 
-			lines_to_check[i][3].append(row_col_to_index((0, 2)))
-			lines_to_check[i][3].append(row_col_to_index((2, 0)))
+        make_move(board, move, current_player)
 
-	return lines_to_check
+        if check_winner(board, current_player):
+            return current_player
+        elif np.all(board != 0):
+            return 0  # Tie
 
+        current_player *= -1  # Switch player
 
-# Indexed into by a single 0-based index.
-# Gives all lines we would have to check for potential wins from that cell outwards.
-_LINES_TO_CHECK = _compute_lines_to_check()
-
-
-class GameState:
-	"""
-	A game state for the game of Tic-Tac-Toe.
-	"""
-
-	def __init__(self):
-		self.board = np.zeros(_NUM_ROWS * _NUM_COLS, dtype=int)
-		self.legal_moves = list(range(9))
-		self.current_player = PLAYER_1
-		self.winner = 0
-
-	def apply_move(self, move: int) -> None:
-		"""
-		Modifies the game state by applying the given move.
-
-	    WARNING: for the sake of efficiency, does not implement any checks to avoid
-	    weird stuff happening if this is called on a game state that is already terminal.
-
-	    It also does not check whether given moves are actually legal.
-		:param move: A 0-based index representing where we want to place our piece.
-		"""
-		self.board[move] = self.current_player
-		self.legal_moves.remove(move)
-
-		# Check if the mover won
-		lines_to_check = _LINES_TO_CHECK[move]
-		for line in lines_to_check:
-			win = True
-
-			for cell in line:
-				if self.board[cell] != self.current_player:
-					win = False
-					break
-
-			if win:
-				self.winner = self.current_player
-				break
-
-		# Swap players
-		self.current_player *= -1
-
-	def undo_move(self, move: int) -> None:
-		"""
-		Reverts game state back to the one we were in before given move was played.
-
-		WARNING: for the sake of efficiency, does not implement any checks to avoid
-		weird stuff happening if this is called on the initial game state.
-
-		It also does not check whether the given move was actually played last.
-
-		:param move: The move to be undone.
-		"""
-		self.board[move] = 0
-		self.legal_moves.append(move)
-		self.winner = 0
-		self.current_player *= -1
-
-	def is_game_over(self) -> bool:
-		"""
-		:return: Did the game end?
-		"""
-		return self.winner != 0 or not self.legal_moves
+@njit(parallel=True)
+def simulate_games(num_games, player1_type, player2_type):
+    results = np.zeros(num_games, dtype=np.int8)
+    for i in prange(num_games):
+        results[i] = play_single_game(player1_type, player2_type)
+    return results

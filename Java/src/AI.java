@@ -11,15 +11,14 @@ public class AI {
         for (int move : gameState.getLegalMoves()) {
             GameState newState = gameState.clone();
             newState.applyMove(move);
-            int score = -negamax(newState, -player, depth + 1); // Negate the score since the opponent plays next
+            // Negate score for opponent 
+            int score = -negamax(newState, -player, depth + 1); 
 
             if (score > bestScore) {
                 bestScore = score;
                 bestMove = move;
             }
-        }
-
-        // If at root of tree (depth 0), return the move, otherwise return the score
+        }        
         return depth == 0 ? bestMove : bestScore;
     }
 
